@@ -22,6 +22,6 @@ model User {
 
   firstName String
   lastName String
-  email String
+  email String @unique
   passwordHash String
 }
