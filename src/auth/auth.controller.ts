@@ -1,18 +1,34 @@
-import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, InternalServerErrorException, Post, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { SigninDto, SignupDto } from './dto';
+import type { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private authService: AuthService) {}
+    constructor(private authService: AuthService) { }
 
     @Post('signup')
-    signup() {
-        return this.authService.handleSignup()
+    signup(@Body() dto: SignupDto) {
+        return this.authService.handleSignup(dto)
     }
 
     @Post('signin')
-    @HttpCode(HttpStatus.OK)
-    signin() {
-        return this.authService.handleSignin()
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async signin(
+        @Body() dto: SigninDto,
+        @Res({ passthrough: true }) res: Response
+    ) {
+        const sessionId = await this.authService.handleSignin(dto);
+
+        // Highly unlikely, but possible
+        if(!sessionId)
+            throw new InternalServerErrorException('Failed to generate session ID');
+
+        // TODO: must be configured based on the environment (production or development)
+        res.cookie('sid', sessionId, {
+            httpOnly: true,
+            sameSite: 'strict',
+            secure: false
+        });
     }
 }
