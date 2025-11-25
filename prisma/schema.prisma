@@ -13,3 +13,13 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName String
+  lastName String
+  email String
+  passwordHash String
+}
