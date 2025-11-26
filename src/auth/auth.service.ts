@@ -1,11 +1,19 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import * as argon2 from 'argon2';
+import uuid from 'uuid';
+
 import { SigninDto, SignupDto } from './dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import * as argon2 from 'argon2';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+
+type Session = { id: string, expiry: number };
 
 @Injectable()
 export class AuthService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        @Inject(CACHE_MANAGER) private cacheManager: Cache,
+        private prisma: PrismaService,
+    ) { }
 
     async handleSignup(dto: SignupDto) {
         const userExists = await this.prisma.user.findUnique({
@@ -44,21 +52,32 @@ export class AuthService {
         });
 
         // let's not reveal if the user actually exists or not
-        if(!user)
+        if (!user)
             throw new BadRequestException('Invalid credentials')
 
         // Check if password matches its hash from the db
         const passwordMatches = await argon2.verify(user.passwordHash, dto.password);
 
         // let's also not reveal that the password was wrong
-        if(!passwordMatches)
+        if (!passwordMatches)
             throw new BadRequestException('Invalid credentials');
 
-        // After everything's verified, we generate and assign a session ID to the user
-        // as well as return the session ID, that the controller can issue a cookie with;
-        // just that there's no session generation logic yet, so uhh.. TODO!
-        const sessionId = 'TODO';
+        // This isn't even necessary once an authentication guard is added
+        // and will actually be removed later because this is a little problematic as well
+        // (scenario - hacker logged into a user's account, user tries to login - "Already Logged In"), yeah no
+        const previousSession = await this.cacheManager.get<Session>(`session:${user.id}`);
+        if ((previousSession?.expiry || 0) < Date.now())
+            await this.cacheManager.del(`session:${user.id}`)
+        else if (!!previousSession)
+            throw new BadRequestException('Already logged in');
 
-        return sessionId;
+        // After everything's verified, we generate and assign a session ID to the user
+        // as well as return the session ID, that the controller can issue a cookie with
+        const sessionId = uuid.v4();
+        const sessionExpiry = Date.now() + 24 * 60 * 60 * 1000; // 1d
+
+        await this.cacheManager.set<Session>(`session:${user.id}`, { id: sessionId, expiry: sessionExpiry }, 24 * 60 * 60 * 1000);
+
+        return { id: sessionId, expiry: sessionExpiry };
     }
 }

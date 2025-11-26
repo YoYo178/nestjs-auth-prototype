@@ -18,14 +18,14 @@ export class AuthController {
         @Body() dto: SigninDto,
         @Res({ passthrough: true }) res: Response
     ) {
-        const sessionId = await this.authService.handleSignin(dto);
+        const session = await this.authService.handleSignin(dto);
 
         // Highly unlikely, but possible
-        if(!sessionId)
+        if (!session?.id)
             throw new InternalServerErrorException('Failed to generate session ID');
 
         // TODO: must be configured based on the environment (production or development)
-        res.cookie('sid', sessionId, {
+        res.cookie('sid', session.id, {
             httpOnly: true,
             sameSite: 'strict',
             secure: false
