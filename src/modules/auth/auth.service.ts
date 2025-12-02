@@ -3,7 +3,7 @@ import * as argon2 from 'argon2';
 import uuid from 'uuid';
 
 import { SigninDto, SignupDto } from './dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/modules/prisma/prisma.service';
 import type { RedisClientType } from 'redis';
 import { ConfigService } from '@nestjs/config';
 
