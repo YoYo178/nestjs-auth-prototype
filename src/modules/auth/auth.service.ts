@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import uuid from 'uuid';
 
@@ -7,7 +7,7 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import type { RedisClientType } from 'redis';
 import { ConfigService } from '@nestjs/config';
 
-type Session = { id: string, expiry: number };
+type Session = { userId: number, sessionId: string, expiry: number };
 
 @Injectable()
 export class AuthService {
@@ -69,7 +69,7 @@ export class AuthService {
         // temporary!! until a proper auth guard is added!
         const previousSessionStr = await this.redis.get(`session:${clientSid}`);
         if (previousSessionStr?.length) {
-            const previousSession = JSON.parse(previousSessionStr);
+            const previousSession = JSON.parse(previousSessionStr) as Session;
 
             if (!!previousSession) {
                 if (previousSession.expiry < Date.now())
@@ -101,5 +101,30 @@ export class AuthService {
         );
 
         return sessionId;
+    }
+
+    async validateSessionId(sessionId: string) {
+        const sessionStr = await this.redis.get(`session:${sessionId}`);
+
+        if (!sessionStr)
+            throw new UnauthorizedException();
+
+        const session = JSON.parse(sessionStr) as Session;
+
+        if (!session || session.expiry < Date.now())
+            throw new UnauthorizedException('Session expired, Please login again.');
+
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: session.userId
+            }
+        });
+
+        if (!user)
+            throw new NotFoundException('User not found');
+
+        const { passwordHash, ...rest } = user;
+
+        return rest;
     }
 }
