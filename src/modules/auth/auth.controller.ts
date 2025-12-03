@@ -20,8 +20,7 @@ export class AuthController {
         @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
     ) {
-        const clientSid = req.cookies['sid'];
-        const sessionId = await this.authService.handleSignin(dto, clientSid);
+        const sessionId = await this.authService.handleSignin(dto);
 
         // Highly unlikely, but possible
         if (!sessionId)

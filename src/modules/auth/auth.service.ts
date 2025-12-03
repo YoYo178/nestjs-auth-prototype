@@ -4,7 +4,7 @@ import uuid from 'uuid';
 
 import { SigninDto, SignupDto } from './dto';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import type { RedisClientType } from 'redis';
+import type { RedisClientType, SetOptions } from 'redis';
 import { ConfigService } from '@nestjs/config';
 
 type Session = { userId: number, sessionId: string };
@@ -49,7 +49,7 @@ export class AuthService {
         return rest;
     }
 
-    async handleSignin(dto: SigninDto, clientSid: string) {
+    async handleSignin(dto: SigninDto) {
 
         const user = await this.prisma.user.findUnique({
             where: { email: dto.email }
@@ -66,39 +66,29 @@ export class AuthService {
         if (!passwordMatches)
             throw new BadRequestException('Invalid credentials');
 
-        // temporary!! until a proper auth guard is added!
-        const previousSessionStr = await this.redis.get(`session:${clientSid}`);
-        if (previousSessionStr?.length) {
-            const previousSession = JSON.parse(previousSessionStr) as Session;
-
-            if (!!previousSession) {
-                if (previousSession.expiry < Date.now())
-                    await this.redis.del(`session:${clientSid}`)
-                else
-                    throw new ConflictException('You already have an existing session!');
-            }
+        const existingSessionId = await this.redis.get(`user_session:${user.id}`);
+        if (existingSessionId?.length) {
+            await this.redis.del(`user_session:${user.id}`);
+            await this.redis.del(`session:${existingSessionId}`)
         }
 
         // After everything's verified, we generate and assign a session ID to the user
         // as well as return the session ID, that the controller can issue a cookie with
         const sessionId = uuid.v4();
         const sessionTTL = this.config.get('SESSION_TTL') || 86400;
-        const sessionExpiry = Date.now() + (sessionTTL * 1000)
-        // store session in Redis with TTL
-        await this.redis.set(
-            `session:${sessionId}`,
-            JSON.stringify({
-                userId: user.id,
-                sessionId,
-                expiry: sessionExpiry
-            }),
-            {
-                expiration: {
-                    type: 'EX',
-                    value: sessionTTL
-                }
+
+        const expirationObject: SetOptions = {
+            expiration: {
+                type: 'EX',
+                value: sessionTTL
             }
-        );
+        }
+
+        // store session in Redis with TTL
+        await this.redis.set(`session:${sessionId}`, JSON.stringify({ userId: user.id, sessionId }), expirationObject);
+
+        // Set a reverse pointer to get sessionId via userId
+        await this.redis.set(`user_session:${user.id}`, sessionId, expirationObject);
 
         return sessionId;
     }
