@@ -7,7 +7,7 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import type { RedisClientType } from 'redis';
 import { ConfigService } from '@nestjs/config';
 
-type Session = { userId: number, sessionId: string, expiry: number };
+type Session = { userId: number, sessionId: string };
 
 @Injectable()
 export class AuthService {
@@ -109,9 +109,9 @@ export class AuthService {
         if (!sessionStr)
             throw new UnauthorizedException();
 
-        const session = JSON.parse(sessionStr) as Session;
+        const session: Session = JSON.parse(sessionStr);
 
-        if (!session || session.expiry < Date.now())
+        if (!session)
             throw new UnauthorizedException('Session expired, Please login again.');
 
         const user = await this.prisma.user.findUnique({
