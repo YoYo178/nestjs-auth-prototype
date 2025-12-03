@@ -1,8 +1,10 @@
-import { Body, Controller, HttpCode, HttpStatus, InternalServerErrorException, Post, Req, Res, Session, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, InternalServerErrorException, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SigninDto, SignupDto } from './dto';
 import type { Request, Response } from 'express';
 import { AuthGuard } from './auth.guard';
+import { GetUser } from 'src/common/decorators/get-user.decorator';
+import { SafeUser } from 'src/common/types/user.types';
 
 @Controller('auth')
 export class AuthController {
@@ -37,7 +39,8 @@ export class AuthController {
     @Post('signout')
     @HttpCode(HttpStatus.NO_CONTENT)
     @UseGuards(AuthGuard)
-    signout(@Res({ passthrough: true }) res: Response) {
+    async signout(@Res({ passthrough: true }) res: Response, @GetUser() user: SafeUser | null) {
         res.clearCookie('sid');
+        await this.authService.handleSignOut(user);
     }
 }

@@ -6,6 +6,7 @@ import { SigninDto, SignupDto } from './dto';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import type { RedisClientType, SetOptions } from 'redis';
 import { ConfigService } from '@nestjs/config';
+import { SafeUser } from 'src/common/types/user.types';
 
 type Session = { userId: number, sessionId: string };
 
@@ -91,6 +92,18 @@ export class AuthService {
         await this.redis.set(`user_session:${user.id}`, sessionId, expirationObject);
 
         return sessionId;
+    }
+
+    async handleSignOut(user: SafeUser | null) {
+        if(!user)
+            return;
+
+        const sessionId = await this.redis.get(`user_session:${user.id}`);
+
+        if (sessionId?.length) {
+            await this.redis.del(`session:${sessionId}`)
+            await this.redis.del(`user_session:${user.id}`)
+        }
     }
 
     async validateSessionId(sessionId: string) {
