@@ -3,9 +3,10 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SessionModule } from '../session/session.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [PrismaModule, SessionModule],
+  imports: [RedisModule, PrismaModule, SessionModule],
   providers: [UsersService],
   controllers: [UsersController],
   exports: [UsersService]
