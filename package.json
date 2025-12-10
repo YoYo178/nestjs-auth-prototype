@@ -1,10 +1,16 @@
 {
   "name": "nestjs-auth-prototype",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
+  "version": "1.0.0",
+  "description": "A practice project built for practicing Nest.js, Prisma ORM, PostgreSQL, Redis, and Session-based authentication.",
+  "license": "MIT",
+  "author": {
+    "name": "-_YoYo178_-",
+    "url": "https://github.com/YoYo178"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YoYo178/nestjs-auth-prototype"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
