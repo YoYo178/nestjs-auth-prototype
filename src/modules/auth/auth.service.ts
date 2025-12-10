@@ -35,20 +35,34 @@ export class AuthService {
         return rest;
     }
 
-    async handleSignin(dto: SigninDto) {
+    async handleSignin(dto: SigninDto, clientSid?: string) {
         const userId = await this.usersService.validateCredentials(dto);
 
-        await this.sessionService.clearSession(userId);
+        if (clientSid?.length)
+            await this.sessionService.clearSession(userId, clientSid);
 
         const sessionId = await this.sessionService.createSession(userId);
 
         return sessionId;
     }
 
-    async handleSignOut(user: SafeUser | null) {
+    async handleSignOut(user: SafeUser | null, clientSid: string) {
         if (!user)
             return;
 
-        await this.sessionService.clearSession(user.id);
+        await this.sessionService.clearSession(user.id, clientSid);
+    }
+
+    // Session wrapper methods
+    getSessions(userId: number) {
+        return this.sessionService.getSessions(userId);
+    }
+
+    clearSession(userId: number, sessionId: string) {
+        return this.sessionService.clearSession(userId, sessionId);
+    }
+
+    clearAllSessions(userId: number) {
+        return this.sessionService.clearAllSessions(userId);
     }
 }

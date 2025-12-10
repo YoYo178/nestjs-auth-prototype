@@ -29,18 +29,34 @@ export class SessionService {
         // store session in Redis with TTL
         await this.redisService.set(`session:${sessionId}`, JSON.stringify({ userId, sessionId }), expirationObject);
 
+        // get existing sessions
+        const sessions = await this.getSessions(userId);
+
+        // add the new session in the list
+        sessions.push(sessionId);
+
         // Set a reverse pointer to get sessionId via userId
-        await this.redisService.set(`user_session:${userId}`, sessionId, expirationObject);
+        await this.redisService.set(`user_sessions:${userId}`, JSON.stringify(sessions), expirationObject);
 
         return sessionId;
     }
 
-    async clearSession(userId: number) {
-        const sessionId = await this.redisService.get(`user_session:${userId}`);
-        if (sessionId?.length) {
-            await this.redisService.del(`user_session:${userId}`);
-            await this.redisService.del(`session:${sessionId}`);
-        }
+    async clearSession(userId: number, sessionId: string) {
+        await this.redisService.del(`session:${sessionId}`);
+
+        const sessions = await this.getSessions(userId);
+        const updatedSesssions = sessions.filter(sid => sid !== sessionId);
+        await this.redisService.set(`user_sessions:${userId}`, JSON.stringify(updatedSesssions));
+    }
+
+    async clearAllSessions(userId: number) {
+        const sessions = await this.getSessions(userId);
+
+        await Promise.all(
+            sessions.map(sessionId => this.redisService.del(`session:${sessionId}`))
+        )
+
+        await this.redisService.del(`user_sessions:${userId}`);
     }
 
     async validateSession(sessionId: string) {
@@ -55,5 +71,17 @@ export class SessionService {
             throw new UnauthorizedException('Session expired, Please login again.');
 
         return session.userId;
+    }
+
+    async getSessions(userId: number) {
+        const sessionsStr = await this.redisService.get(`user_sessions:${userId}`);
+        if (!sessionsStr?.length)
+            return [];
+
+        try {
+            return JSON.parse(sessionsStr) as string[];
+        } catch {
+            return [];
+        }
     }
 }

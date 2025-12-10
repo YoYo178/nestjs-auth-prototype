@@ -1,7 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, InternalServerErrorException, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, InternalServerErrorException, Param, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SigninDto, SignupDto } from './dto';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthGuard } from '../security/guards/auth.guard';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { SafeUser } from 'src/common/types/user.types';
@@ -22,10 +22,12 @@ export class AuthController {
     @Post('signin')
     @HttpCode(HttpStatus.NO_CONTENT)
     async signin(
-        @Body() dto: SigninDto,
+        @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
+        @Body() dto: SigninDto,
     ) {
-        const sessionId = await this.authService.handleSignin(dto);
+        const clientSid = req.cookies?.['sid'];
+        const sessionId = await this.authService.handleSignin(dto, clientSid);
 
         // Highly unlikely, but possible
         if (!sessionId)
@@ -40,11 +42,50 @@ export class AuthController {
     }
 
     @Throttle({ default: { ttl: 10000, limit: 10 } })
+    @UseGuards(AuthGuard)
     @Post('signout')
     @HttpCode(HttpStatus.NO_CONTENT)
-    @UseGuards(AuthGuard)
-    async signout(@Res({ passthrough: true }) res: Response, @GetUser() user: SafeUser | null) {
+    async signout(
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
+        @GetUser() user: SafeUser | null,
+    ) {
+        const clientSid = req.cookies['sid'];
+
         res.clearCookie('sid');
-        await this.authService.handleSignOut(user);
+        await this.authService.handleSignOut(user, clientSid);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('sessions')
+    async getSessions(@GetUser() user: SafeUser | null) {
+        if (!user)
+            return new UnauthorizedException();
+
+        const sessions = await this.authService.getSessions(user.id);
+        return sessions;
+    }
+
+    @UseGuards(AuthGuard)
+    @Delete('sessions/:id')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async deleteSession(
+        @GetUser() user: SafeUser | null,
+        @Param('id') id: string
+    ) {
+        if (!user)
+            return new UnauthorizedException();
+
+        await this.authService.clearSession(user.id, id)
+    }
+
+    @UseGuards(AuthGuard)
+    @Delete('sessions')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async deleteAllSessions(@GetUser() user: SafeUser | null) {
+        if (!user)
+            return new UnauthorizedException();
+
+        await this.authService.clearAllSessions(user.id);
     }
 }
