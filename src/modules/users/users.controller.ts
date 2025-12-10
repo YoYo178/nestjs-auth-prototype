@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, Req, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthGuard } from '../security/guards/auth.guard';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { SafeUser } from 'src/common/types/user.types';
 

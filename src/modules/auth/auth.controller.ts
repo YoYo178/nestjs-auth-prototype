@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, InternalServerErrorException, P
 import { AuthService } from './auth.service';
 import { SigninDto, SignupDto } from './dto';
 import type { Request, Response } from 'express';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard } from '../security/guards/auth.guard';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { SafeUser } from 'src/common/types/user.types';
 
