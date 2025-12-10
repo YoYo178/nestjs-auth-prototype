@@ -10,4 +10,4 @@ import { SessionModule } from '../session/session.module';
   controllers: [UsersController],
   exports: [UsersService]
 })
-export class UsersModule {}
+export class UsersModule { }
